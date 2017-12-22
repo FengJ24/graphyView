@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.ablecloud.graphview.widget.MyHorizontalscrollView
+            android:id="@+id/graph_scrollView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <com.ablecloud.graphview.widget.BarView
+                android:id="@+id/barview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                />
+        </com.ablecloud.graphview.widget.MyHorizontalscrollView>
+
+        <View
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="left"
+            android:background="@drawable/shape_bar_bg"/>
+
+        <View
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="right"
+            android:background="@drawable/shape_bar_bg_right"/>
+
+        <com.ablecloud.graphview.widget.CurveYView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+    </FrameLayout>
+
+</LinearLayout>
