@@ -84,7 +84,7 @@ public class MyHorizontalscrollView extends HorizontalScrollView {
                     this.removeMessages(JUDGE_IS_STOP);
                 }
             } else {
-                mHandler.sendEmptyMessageDelayed(JUDGE_IS_STOP, 100);
+                mHandler.sendEmptyMessageDelayed(JUDGE_IS_STOP, 200);
             }
             lastScrollX = scrollX;
             super.handleMessage(msg);

@@ -13,11 +13,17 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.Region;
 import android.graphics.Shader;
+import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.View;
 
 import com.ablecloud.graphview.DensityUtil;
 import com.ablecloud.graphview.R;
+import com.ablecloud.graphview.TDSBean;
+
+import java.util.List;
+
+
 
 /**
  * Created by fengjian on 2017/7/26.
@@ -30,12 +36,11 @@ public class CurveView extends View {
 
     // 画笔
     Paint grayPaint, bluePaint, blackPaint, whitePaint;
-    private String[] weekDay = new String[]{"日", "一", "二", "三", "四", "五", "六"};
     private int xScaleAccount = 30;  //X轴刻度的数量
     private int yLineAccount;   //Y轴横线的数量
     // 每一份的水平、竖直尺寸
     private float averageWidth = 100;
-    private float averageHeigth = 80;
+    private float averageHeigth;
     /**
      * 曲线上总点数
      */
@@ -78,6 +83,11 @@ public class CurveView extends View {
     private Region mCleanRegion;
     private int mTextTDSSize;
     private Paint cleanWaterValueTDS;
+    private Paint rawWaterValueTDS;
+    private int mVerticalScal = 8;
+    private int mMaxScale = 1000;
+    private List<TDSBean> mTdsBeanList;
+    private boolean isReady;
 
 
     public CurveView(Context context) {
@@ -134,7 +144,6 @@ public class CurveView extends View {
         mCircleFillPaint.setShader(mCircleWhiteFill);
         initRawwaterPaint();
         initCleanWaterPaint();
-
         mBitmap = BitmapFactory.decodeResource(this.getResources(), R.drawable.nuber_bg);
     }
 
@@ -160,8 +169,8 @@ public class CurveView extends View {
         rawWaterValue = new Paint();
         rawWaterValue.setColor(Color.parseColor("#7CA6C0"));
         rawWaterValue.setTextSize(mTextValueSize);
-        rawWaterValue.setStyle(Paint.Style.FILL);
-        rawWaterValue.setStrokeWidth(mDipToPxFloat);
+        rawWaterValue.setStyle(Paint.Style.FILL_AND_STROKE);
+        rawWaterValue.setStrokeWidth(2);
     }
 
     private void initCleanWaterPaint() {
@@ -185,14 +194,20 @@ public class CurveView extends View {
         cleanWaterValue = new Paint();
         cleanWaterValue.setColor(Color.parseColor("#27B1FF"));
         cleanWaterValue.setTextSize(mTextValueSize);
-        cleanWaterValue.setStyle(Paint.Style.FILL);
-        cleanWaterValue.setStrokeWidth(mDipToPxFloat);
+        cleanWaterValue.setStyle(Paint.Style.FILL_AND_STROKE);
+        cleanWaterValue.setStrokeWidth(2);
         //设置TDS值的画笔
         cleanWaterValueTDS = new Paint();
         cleanWaterValueTDS.setColor(Color.parseColor("#27B1FF"));
         cleanWaterValueTDS.setTextSize(mTextTDSSize);
         cleanWaterValueTDS.setStyle(Paint.Style.FILL);
         cleanWaterValueTDS.setStrokeWidth(mDipToPxFloat);
+        //原水TDS值的画笔
+        rawWaterValueTDS = new Paint();
+        rawWaterValueTDS.setColor(Color.parseColor("#7CA6C0"));
+        rawWaterValueTDS.setTextSize(mTextTDSSize);
+        rawWaterValueTDS.setStyle(Paint.Style.FILL);
+        rawWaterValueTDS.setStrokeWidth(mDipToPxFloat);
 
     }
 
@@ -200,49 +215,48 @@ public class CurveView extends View {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         int h = MeasureSpec.getSize(heightMeasureSpec);
-        setMeasuredDimension((int) (xScaleAccount * averageWidth), h);
+        setMeasuredDimension((int) (xScaleAccount * averageWidth) + mWidthPixels, h);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        //画背景
-        drawGrayBackground(canvas);
-        //画水平横线
-        drawYCoordinateLine(canvas);
-        //画基准线
-        drawMiddleLine(canvas);
-        //画原水曲线
-        drawRawWaterlLine(canvas);
-        //画净水曲线
-        drawCleanWaterLine(canvas);
-        //画X轴刻度
-        drawXCoordinateText(canvas);
-        //画原水圆圈
-//        drawRawCircle(canvas);
-        //画净水圆圈
-//        drawCleanCircle(canvas);
-        //画原水曲线值背景
-        drawRawLineValueBg(canvas);
-        //画净水曲线值背景
-        drawCleanLineValueBg(canvas);
-        //画原水圆圈2
-        drawRawCircleFollow(canvas);
-        //画净水圆圈2
-        drawCleanCircleFollow(canvas);
-
-
+        //初始化完毕,开始执行绘画
+        if (isReady) {
+            //画背景
+            drawGrayBackground(canvas);
+            //画水平横线
+            drawYCoordinateLine(canvas);
+            //画基准线
+            drawMiddleLine(canvas);
+            //画原水曲线
+            drawRawWaterlLine(canvas);
+            //画原水圆圈2
+            drawRawCircleFollow(canvas);
+            //画原水曲线值背景
+            drawRawLineValueBg(canvas);
+            //画净水曲线
+            drawCleanWaterLine(canvas);
+            //画X轴刻度
+            drawXCoordinateText(canvas);
+            //画净水曲线值背景
+            drawCleanLineValueBg(canvas);
+            //画净水圆圈2
+            drawCleanCircleFollow(canvas);
+            //画Y轴坐标轴
+            drawYCoordinateNumber(canvas);
+        }
         super.onDraw(canvas);
     }
 
     private void drawCleanCircleFollow(Canvas canvas) {
-        if (mCleanRegion != null) {
+        if (mCleanRegion != null && mCleanRegion.getBounds().top != 0) {
             canvas.drawCircle(mCleanRegion.getBounds().left, mCleanRegion.getBounds().top, 20, mCircleFillPaint);
             canvas.drawCircle(mWidthPixels / 2 + mScrollDistence, mCleanRegion.getBounds().top, 20, cleanWaterPaint);
         }
     }
 
     private void drawRawCircleFollow(Canvas canvas) {
-        if (mRawRegion != null) {
+        if (mRawRegion != null && mRawRegion.getBounds().top != 0) {
             canvas.drawCircle(mRawRegion.getBounds().left, mRawRegion.getBounds().top, 20, mCircleFillPaint);
             canvas.drawCircle(mWidthPixels / 2 + mScrollDistence, mRawRegion.getBounds().top, 20, rawWaterPaint);
         }
@@ -266,12 +280,12 @@ public class CurveView extends View {
     }
 
     private void drawCleanLineValueBg(Canvas canvas) {
-        if (mBitmap != null && mCleanPoints != null && mCleanRegion != null) {
+        if (mBitmap != null && mCleanPoints != null && mCleanRegion != null && null != mTdsBeanList) {
             //创建显示图片的位置
             Rect srcRect = new Rect(0, 0, mBitmap.getWidth(), mBitmap.getHeight());
             //获取数值字体的宽高矩形
             Rect rect = new Rect();
-            cleanWaterValue.getTextBounds(mCleanPoints[middlePointLocation].y + "", 0, (mCleanPoints[middlePointLocation].y + "").length(), rect);
+            cleanWaterValue.getTextBounds("999", 0, ("999").length(), rect);
             //获取TDS字体的宽高矩形
             Rect tdsRect = new Rect();
             cleanWaterValueTDS.getTextBounds("TDS", 0, "TDS".length(), tdsRect);
@@ -279,91 +293,59 @@ public class CurveView extends View {
             int halfWidth = (rect.right - rect.left) / 2;
             int halfHeight = (rect.bottom - rect.top) / 2;
             Rect desRect = new Rect((int) (mWidthPixels / 2 + mScrollDistence - halfWidth * 1.5),
-                    (int) (mCleanRegion.getBounds().top - averageHeigth - halfHeight * 2),
+                    (int) (mCleanRegion.getBounds().top - averageHeigth * 2.0f / 3 - halfHeight * 2),
                     (int) (mWidthPixels / 2 + mScrollDistence + halfWidth * 1.5),
-                    (int) (mCleanRegion.getBounds().top - averageHeigth + halfHeight * 3));
+                    (int) (mCleanRegion.getBounds().top - averageHeigth * 2.0f / 3 + halfHeight * 3));
             //画背景
-            canvas.drawBitmap(mBitmap,srcRect,desRect,whitePaint);
+            canvas.drawBitmap(mBitmap, srcRect, desRect, whitePaint);
             Rect targetRect = new Rect(mWidthPixels / 2 + mScrollDistence - halfWidth * 2,
-                    (int) (mCleanRegion.getBounds().top - averageHeigth - halfHeight * 2),
+                    (int) (mCleanRegion.getBounds().top - averageHeigth * 2.0f / 3 - halfHeight * 2),
                     mWidthPixels / 2 + mScrollDistence + halfWidth * 2,
-                    (int) (mCleanRegion.getBounds().top - averageHeigth + halfHeight * 2));
-            //画边框
-//            drawBorder(canvas,tdsRect,rect);
+                    (int) (mCleanRegion.getBounds().top - averageHeigth * 2.0f / 3 + halfHeight * 2));
             Paint.FontMetricsInt fontMetrics = cleanWaterValue.getFontMetricsInt();
             int baseline = (int) (targetRect.top + targetRect.bottom - fontMetrics.bottom - fontMetrics.top) / 2;
             cleanWaterValue.setTextAlign(Paint.Align.CENTER);
-            canvas.drawText((int) mCleanPoints[middlePointLocation].y + "", targetRect.centerX() - (tdsRect.right - tdsRect.left) / 2, baseline, cleanWaterValue);
+            canvas.drawText((int) mTdsBeanList.get(middlePointLocation).getCleanTDSInfo() + "", targetRect.centerX(), baseline, cleanWaterValue);
             cleanWaterValueTDS.setTextAlign(Paint.Align.CENTER);
-            canvas.drawText("TDS",
-                    (int)(targetRect.centerX()+tdsRect.width()+DensityUtil.dipToPx(getContext(),1)),
-                    baseline, cleanWaterValueTDS);
 
 
         }
-    }
-
-    private void drawBorder(Canvas canvas, Rect tdsRect, Rect rect) {
-        Rect targetRect1 = new Rect(mWidthPixels / 2 + mScrollDistence - tdsRect.width()/2,
-                (int) (mCleanRegion.getBounds().top - averageHeigth - tdsRect.height()/2),
-                mWidthPixels / 2 + mScrollDistence + tdsRect.width()/2,
-                (int) (mCleanRegion.getBounds().top - averageHeigth + tdsRect.height()/2));
-
-        Rect targetRect2 = new Rect(mWidthPixels / 2 + mScrollDistence - rect.width()/2,
-                (int) (mCleanRegion.getBounds().top - averageHeigth - rect.height()/2),
-                mWidthPixels / 2 + mScrollDistence + rect.width()/2,
-                (int) (mCleanRegion.getBounds().top - averageHeigth + rect.height()/2));
-        canvas.drawRect(targetRect2,whitePaint);
-        canvas.drawRect(targetRect1,rawWaterValue);
     }
 
     private void drawRawLineValueBg(Canvas canvas) {
         //确定文字显示的区域
-        if (mBitmap != null && mPoints != null && mRawRegion != null) {
+        if (mBitmap != null && mPoints != null && mRawRegion != null && null != mTdsBeanList) {
             //创建显示图片的位置
+            if (middlePointLocation == mTdsBeanList.size() - 1) {
+
+            }
             Rect srcRect = new Rect(0, 0, mBitmap.getWidth(), mBitmap.getHeight());
             Rect rect = new Rect();
-            rawWaterValue.getTextBounds(mPoints[middlePointLocation].y + "", 0, (mPoints[middlePointLocation].y + "").length(), rect);
+            rawWaterValue.getTextBounds("999", 0, ("999").length(), rect);
+            //获取TDS字体的宽高矩形
+            Rect tdsRect = new Rect();
+            rawWaterValueTDS.getTextBounds("TDS", 0, "TDS".length(), tdsRect);
             int halfWidth = (rect.right - rect.left) / 2;
             int halfHeight = (rect.bottom - rect.top) / 2;
             Rect desRect = new Rect((int) (mWidthPixels / 2 + mScrollDistence - halfWidth * 1.5),
-                    (int) (mRawRegion.getBounds().top - averageHeigth - halfHeight * 2),
+                    (int) (mRawRegion.getBounds().top - averageHeigth * 2.0f / 3 - halfHeight * 2),
                     (int) (mWidthPixels / 2 + mScrollDistence + halfWidth * 1.5),
-                    (int) (mRawRegion.getBounds().top - averageHeigth + halfHeight * 3));
+                    (int) (mRawRegion.getBounds().top - averageHeigth * 2.0f / 3 + halfHeight * 3));
             //画背景
             canvas.drawBitmap(mBitmap, srcRect, desRect, whitePaint);
             Rect targetRect = new Rect(mWidthPixels / 2 + mScrollDistence - halfWidth * 2,
-                    (int) (mRawRegion.getBounds().top - averageHeigth - halfHeight * 2),
+                    (int) (mRawRegion.getBounds().top - averageHeigth * 2.0f / 3 - halfHeight * 2),
                     mWidthPixels / 2 + mScrollDistence + halfWidth * 2,
-                    (int) (mRawRegion.getBounds().top - averageHeigth + halfHeight * 2));
+                    (int) (mRawRegion.getBounds().top - averageHeigth * 2.0f / 3 + halfHeight * 2));
             Paint.FontMetricsInt fontMetrics = rawWaterValue.getFontMetricsInt();
             int baseline = (int) (targetRect.top + targetRect.bottom - fontMetrics.bottom - fontMetrics.top) / 2;
-            // 下面这行是实现水平居中，drawText对应改为传入targetRect.centerX()
             rawWaterValue.setTextAlign(Paint.Align.CENTER);
-            canvas.drawText((int) mPoints[middlePointLocation].y + "", targetRect.centerX(), baseline, rawWaterValue);
-
-        }
-    }
-
-    private void drawCleanCircle(Canvas canvas) {
-        if (mCleanPoints != null) {
-            for (int i = 0; i < mCleanPoints.length; i++) {
-                if (middlePointLocation == i) {
-                    canvas.drawCircle(mCleanPoints[i].x, mCleanPoints[i].y, 20, mCircleFillPaint);
-                    canvas.drawCircle(mCleanPoints[i].x, mCleanPoints[i].y, 20, cleanWaterPaint);
-                }
+            if (middlePointLocation == mTdsBeanList.size() - 1) {
+                System.out.println();
             }
-        }
-    }
+            canvas.drawText((int) mTdsBeanList.get(middlePointLocation).getRawTDSInfo() + "", targetRect.centerX(), baseline, rawWaterValue);
+            rawWaterValueTDS.setTextAlign(Paint.Align.CENTER);
 
-    private void drawRawCircle(Canvas canvas) {
-        if (mPoints != null) {
-            for (int i = 0; i < mPoints.length; i++) {
-                if (middlePointLocation == i) {
-                    canvas.drawCircle(mPoints[i].x, mPoints[i].y, 20, mCircleFillPaint);
-                    canvas.drawCircle(mPoints[i].x, mPoints[i].y, 20, rawWaterPaint);
-                }
-            }
         }
     }
 
@@ -378,7 +360,7 @@ public class CurveView extends View {
             PointF startp = new PointF();
             PointF endp = new PointF();
             mPath = new Path();
-            mPath.moveTo(-mPoints[0].x, mPoints[0].y);
+            mPath.moveTo(mPoints[0].x, mPoints[0].y);
 
             for (int i = 0; i < mPoints.length - 1; i++) {
                 startp = mPoints[i];
@@ -394,9 +376,9 @@ public class CurveView extends View {
                 mPath.cubicTo(p3.x, p3.y, p4.x, p4.y, endp.x, endp.y);
             }
             canvas.drawPath(mPath, rawWaterPaint);
-            mPath.lineTo(getWidth(), endp.y);
-            mPath.lineTo(getWidth(), getHeight() - averageHeigth);
-            mPath.lineTo(0, getHeight() - averageHeigth);
+            mPath.lineTo(mPoints[mPoints.length - 1].x + 1, endp.y);
+            mPath.lineTo(mPoints[mPoints.length - 1].x, getHeight() - averageHeigth);
+            mPath.lineTo(mPoints[0].x, getHeight() - averageHeigth);
             mPath.close();
             canvas.drawPath(mPath, rawWaterBgPaint);
         }
@@ -412,8 +394,7 @@ public class CurveView extends View {
             PointF startp = new PointF();
             PointF endp = new PointF();
             mCleanPath = new Path();
-            mCleanPath.moveTo(-mCleanPoints[0].x, mCleanPoints[0].y);
-
+            mCleanPath.moveTo(mCleanPoints[0].x, mCleanPoints[0].y);
             for (int i = 0; i < mCleanPoints.length - 1; i++) {
                 startp = mCleanPoints[i];
                 endp = mCleanPoints[i + 1];
@@ -427,9 +408,9 @@ public class CurveView extends View {
                 mCleanPath.cubicTo(p3.x, p3.y, p4.x, p4.y, endp.x, endp.y);
             }
             canvas.drawPath(mCleanPath, cleanWaterPaint);
-            mCleanPath.lineTo(getWidth(), endp.y);
-            mCleanPath.lineTo(getWidth(), getHeight() - averageHeigth);
-            mCleanPath.lineTo(0, getHeight() - averageHeigth);
+            mCleanPath.lineTo(mCleanPoints[mCleanPoints.length - 1].x + 1, endp.y);
+            mCleanPath.lineTo(mCleanPoints[mCleanPoints.length - 1].x, getHeight() - averageHeigth);
+            mCleanPath.lineTo(mCleanPoints[0].x, getHeight() - averageHeigth);
             mCleanPath.close();
             canvas.drawPath(mCleanPath, cleanWaterBgPaint);
         }
@@ -441,10 +422,26 @@ public class CurveView extends View {
     private void drawGrayBackground(Canvas canvas) {
         grayPaint.setStyle(Paint.Style.FILL);
         whitePaint.setStyle(Paint.Style.FILL);
-        canvas.drawRect(0, viewHeigth * (10f / 11), viewWidth, viewHeigth, whitePaint); // 白色背景
+        canvas.drawRect(0, viewHeigth * ((mVerticalScal + 1) * 1.0f / (mVerticalScal + 2)),
+                viewWidth, viewHeigth, whitePaint); // 白色背景
 
     }
 
+    /**
+     * 画y轴坐标值
+     *
+     * @param canvas
+     */
+    private void drawYCoordinateNumber(Canvas canvas) {
+        grayPaint.setTextSize(mTextSize);
+        int i1 = mMaxScale / mVerticalScal;
+        for (int i = 0; i < mVerticalScal + 1; i++) {
+            canvas.drawText("" + (i * i1), mScrollDistence + viewWidth * (13 / 140)+DensityUtil.dipToPx(getContext(),4), (float) ((mVerticalScal * 1.0f) + 0.9 - i) * averageHeigth, grayPaint);
+            if (i == mVerticalScal) {
+                canvas.drawText("" + mMaxScale, mScrollDistence + viewWidth * (13 / 140)+DensityUtil.dipToPx(getContext(),4), (float) ((mVerticalScal * 1.0f) + 0.9 - i) * averageHeigth, grayPaint);
+            }
+        }
+    }
 
     /**
      * 画Y坐标上横线
@@ -452,7 +449,7 @@ public class CurveView extends View {
      * @param canvas
      */
     private void drawYCoordinateLine(Canvas canvas) {
-        for (int i = 1; i < 10; i++)
+        for (int i = 1; i < mVerticalScal + 2; i++)
             canvas.drawLine(0, averageHeigth * i, viewWidth, averageHeigth * i, grayPaint);
     }
 
@@ -462,9 +459,11 @@ public class CurveView extends View {
      * @param canvas
      */
     private void drawXCoordinateText(Canvas canvas) {
-        grayPaint.setTextSize(mTextSize);
-        for (int i = 0; i < xScaleAccount; i++)
-            canvas.drawText("7." + i + "", (0.2f + i) * averageWidth, 10.7f * averageHeigth, grayPaint);
+        if (null != mTdsBeanList) {
+            grayPaint.setTextSize(mTextSize);
+            for (int i = 0; i < xScaleAccount; i++)
+                canvas.drawText(mTdsBeanList.get(i).getDate(), (0.2f + i) * averageWidth + mWidthPixels / 2, (float) (mVerticalScal * 1.0f + 1.7) * averageHeigth, grayPaint);
+        }
     }
 
 
@@ -472,41 +471,47 @@ public class CurveView extends View {
     public void onWindowFocusChanged(boolean hasWindowFocus) {
         if (hasWindowFocus) {
             initMeasure();
+
         }
         super.onWindowFocusChanged(hasWindowFocus);
     }
 
     private void initMeasure() {
+        isReady = true;
         viewWidth = getWidth();
         viewHeigth = getHeight();
-        averageHeigth = viewHeigth / 11;
-        //确定点的位置
-        mPoints = new PointF[xScaleAccount];
-        for (int i = 0; i < mPoints.length; i++) {
-            if (i % 2 == 0) {
-                //偶数
-                mPoints[i] = new PointF(averageWidth * i + averageWidth / 2, (float) (3.1 * averageHeigth));
-            } else {
-                //奇数
-                mPoints[i] = new PointF(averageWidth * i + averageWidth / 2, (float) (3.6 * averageHeigth));
-            }
-        }
-        mCleanPoints = new PointF[xScaleAccount];
-        for (int i = 0; i < mCleanPoints.length; i++) {
-            if (i % 2 == 0) {
-                //偶数
-                mCleanPoints[i] = new PointF(averageWidth * i + averageWidth / 2, (float) (8.1 * averageHeigth));
-            } else {
-                //奇数
-                mCleanPoints[i] = new PointF(averageWidth * i + averageWidth / 2, (float) (8.5 * averageHeigth));
-            }
-        }
-        invalidate();
+        averageHeigth = viewHeigth / (mVerticalScal + 2);
         mWidthPixels = this.getResources().getDisplayMetrics().widthPixels;
         mHeightPixels = this.getResources().getDisplayMetrics().heightPixels;
+        setNeedData();
         //设置填充颜色的坐标
         setFillColorLocation();
     }
+
+    private void setNeedData() {
+        if (null != mTdsBeanList) {
+            //确定点的位置
+            mPoints = new PointF[xScaleAccount];
+            mCleanPoints = new PointF[xScaleAccount];
+            xScaleAccount = mTdsBeanList.size();
+            for (int i = 0; i < mTdsBeanList.size(); i++) {
+                mPoints[i] = new PointF(averageWidth * i + averageWidth / 2 + mWidthPixels / 2, (float) (changeFrame(mTdsBeanList.get(i).getRawTDSInfo())));
+                mCleanPoints[i] = new PointF(averageWidth * i + averageWidth / 2 + mWidthPixels / 2, (float) (changeFrame(mTdsBeanList.get(i).getCleanTDSInfo())));
+            }
+            invalidate();
+            if (null != mOnPointXLocationlistener) {
+                mScrollDistence = ((int) ((averageWidth / 2 + (mTdsBeanList.size() - 1) * averageWidth)) + 1);
+                tellDistence(mScrollDistence);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        stopScroll();
+                    }
+                },200);
+            }
+        }
+    }
+
 
     private void setFillColorLocation() {
         int colors2[] = new int[2];
@@ -531,16 +536,18 @@ public class CurveView extends View {
 
     //将水平滑动的数据传回来
     public void tellDistence(int distence) {
-        //设置原水剪裁矩形
-        mRawRegion = new Region();
-        Region clip = new Region(distence + mWidthPixels / 2, 0, distence + mWidthPixels / 2 + 1, viewHeigth);
-        mRawRegion.setPath(mPath, clip);
-        //设置净水剪裁矩形
-        mCleanRegion = new Region();
-        Region cleanClip = new Region(distence + mWidthPixels / 2, 0, distence + mWidthPixels / 2 + 1, viewHeigth);
-        mCleanRegion.setPath(mCleanPath, cleanClip);
-        mScrollDistence = distence;
-        invalidate();
+        if (null != mCleanPath && null != mPath) {
+            //设置原水剪裁矩形
+            mRawRegion = new Region();
+            Region clip = new Region(distence + mWidthPixels / 2, 0, distence + mWidthPixels / 2 + 1, viewHeigth);
+            mRawRegion.setPath(mPath, clip);
+            //设置净水剪裁矩形
+            mCleanRegion = new Region();
+            Region cleanClip = new Region(distence + mWidthPixels / 2, 0, distence + mWidthPixels / 2 + 1, viewHeigth);
+            mCleanRegion.setPath(mCleanPath, cleanClip);
+            mScrollDistence = distence;
+            invalidate();
+        }
     }
 
     /**
@@ -549,33 +556,86 @@ public class CurveView extends View {
      * @param canvas
      */
     private void drawMiddleLine(Canvas canvas) {
-        canvas.drawLine(mWidthPixels / 2 + mScrollDistence, viewHeigth * (10f / 11), mWidthPixels / 2 + mScrollDistence, averageHeigth, grayPaint);
+        canvas.drawLine(mWidthPixels / 2 + mScrollDistence, averageHeigth * (mVerticalScal + 1), mWidthPixels / 2 + mScrollDistence, averageHeigth, grayPaint);
     }
 
     /**
      * 手指停止滑动 记录位置
      */
     public void stopScroll() {
-        //中轴线的位置 X坐标
-        int i = mWidthPixels / 2 + mScrollDistence;
-        //得余数
-        float v1 = ((i - averageWidth / 2) % averageWidth);
-        //得结果
-        int v2 = (int) ((i - averageWidth / 2) / averageWidth);
-        if (v1 > averageWidth / 2) {
-            //滑动到下一个点
-            middlePointLocation = v2 + 1;
-            int nextPoint = (int) (averageWidth * (v2 + 1) - mWidthPixels / 2 + averageWidth / 2);
-            mOnPointXLocationlistener.pointXLocation(nextPoint);
-        } else {
-            //滑动到上个点
-            middlePointLocation = v2;
-            int prePoint = (int) ((averageWidth * v2) - mWidthPixels / 2 + averageWidth / 2);
-            mOnPointXLocationlistener.pointXLocation(prePoint);
+        if (null != mTdsBeanList && null != mOnPointXLocationlistener) {
+            //当滑动距离大于 屏幕一半+水平分割一半+所有有刻度
+            if (mScrollDistence > averageWidth / 2 + (mTdsBeanList.size() - 1) * averageWidth) {
+                middlePointLocation = mTdsBeanList.size() - 1;
+                mOnPointXLocationlistener.pointXLocation((int) ((averageWidth / 2 + (mTdsBeanList.size() - 1) * averageWidth)));
+            } else if (mScrollDistence > averageWidth / 2) {
+                //得余数
+                float v1 = ((mScrollDistence - averageWidth / 2) % averageWidth);
+                //得结果
+                int v2 = (int) ((mScrollDistence - averageWidth / 2) / averageWidth);
+                if (v1 > averageWidth / 2) {
+                    //滑动到下一个点
+                    middlePointLocation = v2 + 1;
+                    if (middlePointLocation > mTdsBeanList.size() - 1) {
+                        middlePointLocation = mTdsBeanList.size() - 1;
+                    }
+                    int nextPoint = (int) ((averageWidth * middlePointLocation) + averageWidth / 2);
+                    mOnPointXLocationlistener.pointXLocation(nextPoint);
+                } else {
+                    //滑动到上个点
+                    middlePointLocation = v2;
+                    int prePoint = (int) ((averageWidth * v2) + averageWidth / 2);
+                    mOnPointXLocationlistener.pointXLocation(prePoint);
+                }
+            } else {
+                //小距离滑动
+                middlePointLocation = 0;
+                int nextPoint = (int) (averageWidth / 2);
+                mOnPointXLocationlistener.pointXLocation(nextPoint);
+
+            }
+            invalidate();
         }
+    }
 
+    /**
+     * 设置垂直刻度
+     *
+     * @param verticalScal
+     */
+    public void setVerticalScal(int verticalScal) {
+        mVerticalScal = verticalScal;
+    }
 
-        invalidate();
+    /**
+     * 设置最大刻度
+     *
+     * @param maxScale
+     */
+    public void setMaxScale(int maxScale) {
+        mMaxScale = maxScale;
+    }
+
+    /**
+     * 将传进来的值进行坐标转换
+     *
+     * @param value
+     * @return
+     */
+    private float changeFrame(int value) {
+        float v1 = 1 - (value * 1.00f) / mMaxScale;
+        float v = v1 * ((mVerticalScal) * averageHeigth) + averageHeigth;
+        return v;
+    }
+
+    /**
+     * 设置数据 日期/原水TDS/净水TDS
+     *
+     * @param tdsBeanList
+     */
+    public void setCureData(List<TDSBean> tdsBeanList) {
+        mTdsBeanList = tdsBeanList;
+        initMeasure();
     }
 
     public void setOnPointXLocationlistener(OnPointXLocationlistener onPointXLocationlistener) {

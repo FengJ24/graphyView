@@ -7,8 +7,12 @@ public class DensityUtil {
      * 根据手机的分辨率将dp转化为px
      */
     public static int dipToPx(Context context, float dpValue) {
-        final float scale = context.getResources().getDisplayMetrics().density;
-        return (int) (dpValue * scale + 0.5f);
+        if (context!=null) {
+            final float scale = context.getResources().getDisplayMetrics().density;
+            return (int) (dpValue * scale + 0.5f);
+        }else{
+            return 0;
+        }
     }
 
     public static float dipToPxFloat(Context context, float dpValue) {

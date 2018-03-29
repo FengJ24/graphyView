@@ -1,20 +1,20 @@
-package com.ablecloud.graphview.widget;
+package com.ablecloud.graphview;
 
 /**
  * Created by fengjian on 2017/8/30.
  */
 
-public class TDSBean{
-    private String data;
+public class TDSBean {
+    private String date;
     private int rawTDSInfo;
     private int cleanTDSInfo;
 
-    public String getData() {
-        return data;
+    public String getDate() {
+        return date;
     }
 
-    public void setData(String data) {
-        this.data = data;
+    public void setDate(String date) {
+        this.date = date;
     }
 
     public int getRawTDSInfo() {
