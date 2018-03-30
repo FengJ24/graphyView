@@ -62,7 +62,6 @@ public class BarView extends View {
         init();
     }
 
-
     public BarView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
